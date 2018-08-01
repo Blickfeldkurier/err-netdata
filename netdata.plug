@@ -1,0 +1,13 @@
+[Core]
+name = netdata
+module = netdata
+
+[Documentation]
+description = Get information and graphs from netdata
+
+[Python]
+version = 3
+
+[Errbot]
+min = 5.2.0
+
