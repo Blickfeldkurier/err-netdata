@@ -1,103 +1,33 @@
-from errbot import BotPlugin, botcmd, arg_botcmd, webhook
-import urllib3
+"""Access Netdata from Errbot"""
 import json
+import urllib3
+from errbot import BotPlugin, botcmd, arg_botcmd, webhook
 
-#Netdata API: 
-#http://editor.swagger.io/#/?import=https://raw.githubusercontent.com/firehol/netdata/master/web/netdata-swagger.yaml
 
-class netdata(BotPlugin):
+class Netdata(BotPlugin):
     """
-    Get information and graphs from netdata
+    Get Graphs from Netdata hosts
     """
-    http = urllib3.PoolManager()
-    api_path = '/api/v1/'
-    enpoints = ['charts', 'chart', 'data', 'badge.svg', 'allmetrics']
 
-    def activate(self):
+    def activate(self):#Is thre a way to register self.*  from __init__?
+        """Init Netdata Class"""
+        self.http = urllib3.PoolManager()
+        self.api_path = '/api/v1/'
+        self.enpoints = ['charts', 'chart', 'data', 'badge.svg', 'allmetrics']
+        super().activate()
+    
+    def build_base_url(self, sheme, host, port, endpoint):
+        "Build full url from parameters"
+        return sheme + "://" + host + ":" + str(port) + self.api_path + endpoint
+
+    @arg_botcmd('host', type=str)
+    @arg_botcmd('--port', type=int, default=19999)
+    @arg_botcmd('--sheme', type=str, default='http', unpack_args=False)
+    def netdata_info(self, message, args):
         """
-        Triggers on plugin activation
-
-        You should delete it if you're not using it to override any default behaviour
+        Get Available Charts from host
         """
-        super(netdata, self).activate()
-
-    def deactivate(self):
-        """
-        Triggers on plugin deactivation
-
-        You should delete it if you're not using it to override any default behaviour
-        """
-        super(netdata, self).deactivate()
-
-    def get_configuration_template(self):
-        """
-        Defines the configuration structure this plugin supports
-
-        You should delete it if your plugin doesn't use any configuration like this
-        """
-        return {'EXAMPLE_KEY_1': "Example value",
-                'EXAMPLE_KEY_2': ["Example", "Value"]
-               }
-
-    def check_configuration(self, configuration):
-        """
-        Triggers when the configuration is checked, shortly before activation
-
-        Raise a errbot.utils.ValidationException in case of an error
-
-        You should delete it if you're not using it to override any default behaviour
-        """
-        super(netdata, self).check_configuration(configuration)
-
-    def callback_connect(self):
-        """
-        Triggers when bot is connected
-
-        You should delete it if you're not using it to override any default behaviour
-        """
-        pass
-
-    def callback_message(self, message):
-        """
-        Triggered for every received message that isn't coming from the bot itself
-
-        You should delete it if you're not using it to override any default behaviour
-        """
-        pass
-
-    def callback_botmessage(self, message):
-        """
-        Triggered for every message that comes from the bot itself
-
-        You should delete it if you're not using it to override any default behaviour
-        """
-        pass
-
-    @webhook
-    def example_webhook(self, incoming_request):
-        """A webhook which simply returns 'Example'"""
-        return "Example"
-
-    # Passing split_args_with=None will cause arguments to be split on any kind
-    # of whitespace, just like Python's split() does
-    @botcmd(split_args_with=None)
-    def example(self, message, args):
-        """A command which simply returns 'Example'"""
-        return "Example"
-
-    @arg_botcmd('name', type=str)
-    @arg_botcmd('--favorite-number', type=int, unpack_args=False)
-    def hello(self, message, args):
-        """
-        A command which says hello to someone.
-
-        If you include --favorite-number, it will also tell you their
-        favorite number.
-        """
-        if args.favorite_number is None:
-            return "Hello {name}".format(name=args.name)
-        else:
-            return "Hello {name}, I hear your favorite number is {number}".format(
-                name=args.name,
-                number=args.favorite_number,
-            )
+        ret = self.http.request('GET', self.build_base_url(args.sheme, args.host, args.port, self.enpoints[0]))
+        jdata = json.loads(ret.data.decode('utf-8'))
+        for key in jdata['charts'].keys():
+            yield "  * " + key + "\n"

@@ -1,9 +1,9 @@
 [Core]
-name = netdata
+name = Netdata
 module = netdata
 
 [Documentation]
-description = Get information and graphs from netdata
+description = Get Graphs from Netdata hosts
 
 [Python]
 version = 3
