@@ -2,7 +2,6 @@
 import json
 import urllib3
 import matplotlib.pyplot as plt
-import csv
 from errbot import BotPlugin, botcmd, arg_botcmd, webhook
 
 class Netdata(BotPlugin):
@@ -76,7 +75,6 @@ class Netdata(BotPlugin):
             return ""
         
         return data_ret['result']
-        
 
     @arg_botcmd('host', type=str)
     @arg_botcmd('name', type=str)
