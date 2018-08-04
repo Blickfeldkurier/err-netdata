@@ -1,8 +1,10 @@
 """Access Netdata from Errbot"""
 import json
 import urllib3
+import base64
+import io
 import matplotlib.pyplot as plt
-from errbot import BotPlugin, botcmd, arg_botcmd, webhook
+from errbot import BotPlugin, arg_botcmd
 
 class Netdata(BotPlugin):
     """
@@ -82,6 +84,7 @@ class Netdata(BotPlugin):
     @arg_botcmd('--points', type=int, default=20)
     @arg_botcmd('--group', type=str, default="average")
     @arg_botcmd('--port', type=int, default=19999)
+    @arg_botcmd('--xkcd', type=bool, default=True)
     @arg_botcmd('--sheme', type=str, default='http', unpack_args=False)
     def netdata_chart(self, message, args): 
         """
@@ -94,6 +97,35 @@ class Netdata(BotPlugin):
         chart_data = self.get_chart_data(args.sheme, args.host, args.port, chart_info['data_url'], args.after, args.points, args.group)
         if chart_data == "":
             return
+        
+        plotlist = chart_data.splitlines()
+        outDict = {}
+        headerMap = []
+        for item in plotlist[0].split(','):
+            outDict[item] = []
+            headerMap.append(item)
+        
+        for item in plotlist[1:]:
+            counter = 1
+            for value in item.split(',')[1:]:
+                plotkey = headerMap[counter]
+                outDict[plotkey].append(float(value))
+                counter = counter + 1
+        if(args.xkcd == True):
+            plt.xkcd()
+        plt.title(chart_info['title'])
+        for key, values in outDict.items():
+            plt.plot(values)
+        
+        buf = io.BytesIO()
+        plt.savefig(buf, format='png')
+        buf.seek(0)
+        string = base64.b64encode(buf.read())
+
+        uri = 'data:image/png;base64,' + string.decode('utf-8')
+        self.send_card(
+                to=message.frm,
+                image=uri)
 
     @arg_botcmd('host', type=str)
     @arg_botcmd('name', type=str)
