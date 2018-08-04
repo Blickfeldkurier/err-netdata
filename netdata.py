@@ -41,7 +41,40 @@ class Netdata(BotPlugin):
         jdata = json.loads(ret.data.decode('utf-8'))
         for key in jdata['charts'].keys():
             yield "  * " + key + "\n"
-            
+
+    def get_chart_info(self, sheme, host, port, endpoint, name):
+        base_url = self.build_base_url(sheme, host, port, endpoint)
+        chart_ret = self.http.request(
+                'GET', 
+                base_url,
+                fields={'chart' : name})
+        
+        if chart_ret.status != 200:
+            self.yield_err(base_url, chart_ret.status, chart_ret.reason)
+            return {}
+        
+        jchart = json.loads(chart_ret.data.decode('utf-8'))
+        return {'data_url' : jchart['data_url'], 'title': jchart['title'], 'chart_type' : jchart['chart_type']}
+
+    def get_chart_data(self, sheme, host, port, endpoint, after, points, group):
+        data_url = sheme + "://" + host + ":" + str(port) + endpoint
+        data_ret = self.http.request(
+            'GET',
+            data_url,
+            fields={'after': str(after),
+                    'points': str(points),
+                    'group': group,
+                    'format': 'csv',
+                    'options':'jsonwrap'}
+            )
+        if data_ret.status != 200:
+            self.yield_err(data_url, data_ret.status, data_ret.reason)
+            return ""
+        
+        data_json = json.loads(data_ret.data.decode('utf-8'))
+        return data_json['result']
+        
+
     @arg_botcmd('host', type=str)
     @arg_botcmd('name', type=str)
     @arg_botcmd('--after', type=int, default=-600)
@@ -53,35 +86,34 @@ class Netdata(BotPlugin):
         """
         Get Chart
         """
-        base_url = self.build_base_url(args.sheme, args.host, args.port, self.enpoints[1])
-        chart_ret = self.http.request(
-                'GET', 
-                base_url,
-                fields={'chart' : args.name})
-        
-        if chart_ret.status != 200:
-            self.yield_err(base_url, chart_ret.status, chart_ret.reason)
+        chart_info = self.get_chart_info(args.sheme, args.host, args.port, self.endpoints[1], args.name)
+        if chart_info == {}:
             return
         
-        jchart = json.loads(chart_ret.data.decode('utf-8'))
-        data_endpoint = jchart['data_url']
-        data_url = args.sheme + "://" + args.host + ":" + str(args.port) + data_endpoint
-        data_ret = self.http.request(
-                'GET',
-                data_url,
-                fields={'after': str(args.after),
-                        'points': str(args.points),
-                        'group': args.group,
-                        'format': 'csv',
-                        'options':'jsonwrap'}
-                )
-        
-        if data_ret.status != 200:
-            self.yield_err(base_url, data_ret.status, data_ret.reason)
+        chart_data = self.get_chart_data(args.sheme, args.host, args.port, chart_info['data_url'], args.after, args.points, args.group)
+        if chart_data == "":
+            return
+
+    @arg_botcmd('host', type=str)
+    @arg_botcmd('name', type=str)
+    @arg_botcmd('--after', type=int, default=-600)
+    @arg_botcmd('--points', type=int, default=20)
+    @arg_botcmd('--group', type=str, default="average")
+    @arg_botcmd('--port', type=int, default=19999)
+    @arg_botcmd('--sheme', type=str, default='http', unpack_args=False)
+    def netdata_table(self, message, args): 
+        """
+        Get Chart
+        """
+        chart_info = self.get_chart_info(args.sheme, args.host, args.port, self.endpoints[1], args.name)
+        if chart_info == {}:
             return
         
-        data_json = json.loads(data_ret.data.decode('utf-8'))
-        
+        chart_data = self.get_chart_data(args.sheme, args.host, args.port, chart_info['data_url'], args.after, args.points, args.group)
+        if chart_data == "":
+            return
+                
+        yield chart_data
         
         
         
