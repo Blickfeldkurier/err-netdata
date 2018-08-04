@@ -115,8 +115,8 @@ class Netdata(BotPlugin):
             plt.xkcd()
         plt.title(chart_info['title'])
         for key, values in outDict.items():
-            plt.plot(values)
-        
+            plt.plot(values, label=key)
+        plt.legend()
         buf = io.BytesIO()
         plt.savefig(buf, format='png')
         buf.seek(0)
