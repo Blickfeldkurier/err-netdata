@@ -3,6 +3,8 @@ import json
 import urllib3
 import base64
 import io
+import datetime
+import matplotlib
 import matplotlib.pyplot as plt
 from errbot import BotPlugin, arg_botcmd
 
@@ -52,8 +54,10 @@ class Netdata(BotPlugin):
         if ret == {}:
             return
         
+        outstring = ""
         for key in ret['charts'].keys():
-            yield "  * " + key + "\n"
+            outstring += "  * " + key + "\n"
+        yield outstring
 
     def get_chart_info(self, sheme, host, port, endpoint, name):
         """Get Infor about a particular Chart"""
@@ -106,21 +110,42 @@ class Netdata(BotPlugin):
             headerMap.append(item)
         
         for item in plotlist[1:]:
-            counter = 1
-            for value in item.split(',')[1:]:
+            counter = 0
+            for value in item.split(','):
                 plotkey = headerMap[counter]
-                outDict[plotkey].append(float(value))
+                if counter == 0:
+                    date = datetime.datetime.strptime(value, "%Y-%m-%d %H:%M:%S")
+                    outDict[plotkey].append(matplotlib.dates.date2num(date))
+                else:
+                    outDict[plotkey].append(float(value))
                 counter = counter + 1
+                
         if(args.xkcd == True):
             plt.xkcd()
+            
+        fig = plt.figure()
+        ax = plt.subplot2grid((1, 5), (0, 0), colspan=4)
         plt.title(chart_info['title'])
         for key, values in outDict.items():
-            plt.plot(values, label=key)
-        plt.legend()
+            if(key != headerMap[0]):
+                plt.plot_date(
+                        outDict[headerMap[0]],
+                        values,
+                        label=key,
+                        linestyle='solid',
+                        marker='None')
+       
+        fig.autofmt_xdate()
+        ax.legend(loc='upper left',prop={'size':10}, bbox_to_anchor=(1,1))
+        plt.grid()
         buf = io.BytesIO()
         plt.savefig(buf, format='png')
         buf.seek(0)
         string = base64.b64encode(buf.read())
+        
+        plt.close(fig)
+        plt.cla()
+        plt.close()
 
         uri = 'data:image/png;base64,' + string.decode('utf-8')
         self.send_card(
